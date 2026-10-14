@@ -1,0 +1,926 @@
+/* ============================================================
+   0. 基础重置
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+:root {
+  --text:         #ffffff;
+  --text-dim:     rgba(255,255,255,.76);
+  --text-faint:   rgba(255,255,255,.46);
+  --card:         rgba(255,255,255,.10);
+  --card-hover:   rgba(255,255,255,.16);
+  --card-border:  rgba(255,255,255,.16);
+  --accent:       #ffffff;
+  --radius:       18px;
+  --radius-sm:    12px;
+  --shadow:       0 8px 32px rgba(0,0,0,.22);
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
+          "Microsoft YaHei", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --blur: saturate(140%) blur(18px);
+  --ease: cubic-bezier(.22,.61,.36,1);
+}
+
+body {
+  font-family: var(--font);
+  color: var(--text);
+  background: #0a1026;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  transition: color .6s var(--ease);
+}
+
+button {
+  font-family: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 键盘可见焦点 */
+:focus-visible {
+  outline: 2px solid rgba(255,255,255,.85);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* 全局文字投影（保证任何背景都清晰） */
+body, .app { text-shadow: 0 1px 18px rgba(0,0,0,.35); }
+.temp, .unit { text-shadow: 0 2px 40px rgba(0,0,0,.45); }
+
+
+/* ============================================================
+   1. 背景双层交叉淡化
+   ============================================================ */
+.bg-stack {
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.bg-layer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1.6s var(--ease);
+  will-change: opacity;
+  background-size: cover;
+}
+
+/* 首帧默认给夜间色，JS 会立刻覆盖 */
+#bgA { opacity: 1; background: linear-gradient(180deg, #0a1026 0%, #131b38 60%, #1a2347 100%); }
+
+/* 柔光 / 天气叠加层 */
+.bg-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transition: background 1.4s var(--ease), opacity 1s var(--ease);
+  background: radial-gradient(120% 90% at 50% 0%, rgba(255,255,255,.10), transparent 60%);
+}
+
+/* 亮度渐晕（底部压暗，文字更稳） */
+.bg-stack::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+              rgba(0,0,0,.10) 0%,
+              rgba(0,0,0,0) 30%,
+              rgba(0,0,0,0) 60%,
+              rgba(0,0,0,.28) 100%);
+}
+
+/* ---- 天气叠加 ---- */
+body[data-weather="cloudy"] .bg-glow {
+  background: radial-gradient(130% 100% at 50% 0%, rgba(200,205,215,.20), transparent 65%);
+  opacity: .9;
+}
+body[data-weather="rain"] .bg-glow {
+  background: radial-gradient(130% 100% at 50% 0%, rgba(120,160,200,.22), transparent 60%);
+}
+body[data-weather="snow"] .bg-glow {
+  background: radial-gradient(130% 100% at 50% 0%, rgba(235,245,255,.28), transparent 62%);
+}
+body[data-weather="fog"] .bg-glow {
+  background: radial-gradient(140% 110% at 50% 40%, rgba(220,225,232,.32), transparent 70%);
+}
+body[data-weather="thunder"] .bg-glow {
+  background: radial-gradient(130% 100% at 50% 0%, rgba(120,110,180,.24), transparent 60%);
+}
+
+
+/* ============================================================
+   2. 天体（太阳 / 月亮）
+   ============================================================ */
+.celestial {
+  position: fixed;
+  z-index: -2;
+  pointer-events: none;
+  width: 120px;
+  height: 120px;
+  left: 50%;
+  top: 12%;
+  transform: translateX(-50%);
+  transition: opacity 1.2s var(--ease), transform 1.2s var(--ease);
+  opacity: 0;
+}
+.celestial::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  transition: all 1.2s var(--ease);
+}
+
+/* 太阳 */
+body[data-period="dawn"]  .celestial,
+body[data-period="morning"] .celestial,
+body[data-period="noon"]  .celestial,
+body[data-period="afternoon"] .celestial,
+body[data-period="dusk"]  .celestial { opacity: 1; }
+
+body[data-weather="clear"] .celestial::before,
+body[data-weather="partly"] .celestial::before {
+  background: radial-gradient(circle at 40% 38%, #fff8e0, #ffd66b 45%, #ff9e3d 78%, transparent 80%);
+  box-shadow: 0 0 90px 30px rgba(255,190,90,.35),
+              0 0 200px 90px rgba(255,150,60,.18);
+}
+
+/* 月亮 */
+body[data-period="night"] .celestial,
+body[data-period="late"]  .celestial,
+body[data-period="evening"] .celestial { opacity: 1; }
+
+body[data-period="night"][data-weather="clear"] .celestial::before,
+body[data-period="late"][data-weather="clear"]  .celestial::before,
+body[data-period="evening"][data-weather="clear"] .celestial::before {
+  background: radial-gradient(circle at 38% 36%, #ffffff, #dfe6f5 55%, #aeb8d6 82%, transparent 84%);
+  box-shadow: 0 0 70px 18px rgba(200,215,255,.30),
+              0 0 160px 70px rgba(160,180,255,.12);
+}
+
+/* 云遮天时天体变淡 */
+body[data-weather="cloudy"] .celestial,
+body[data-weather="rain"]   .celestial,
+body[data-weather="fog"]    .celestial { opacity: .25; }
+body[data-weather="snow"]   .celestial { opacity: .45; }
+
+
+/* ============================================================
+   3. 粒子层（雨 / 雪 / 星 / 花瓣）
+   ============================================================ */
+.particles {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.p { position: absolute; will-change: transform, opacity; }
+
+/* 雨 */
+.p-rain {
+  width: 1.5px;
+  height: 18px;
+  background: linear-gradient(180deg, transparent, rgba(200,220,255,.75));
+  border-radius: 2px;
+  animation: fall linear infinite;
+}
+@keyframes fall {
+  from { transform: translate3d(0,-25vh,0); }
+  to   { transform: translate3d(-8vw,115vh,0); }
+}
+
+/* 雪 */
+.p-snow {
+  width: 5px;
+  height: 5px;
+  background: rgba(255,255,255,.9);
+  border-radius: 50%;
+  filter: blur(.4px);
+  animation: snow-fall linear infinite;
+}
+@keyframes snow-fall {
+  0%   { transform: translate3d(0,-10vh,0); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translate3d(6vw,110vh,0); opacity: 0; }
+}
+
+/* 星星 */
+.p-star {
+  width: 2px;
+  height: 2px;
+  background: #fff;
+  border-radius: 50%;
+  animation: twinkle ease-in-out infinite;
+}
+@keyframes twinkle {
+  0%, 100% { opacity: .15; transform: scale(.8); }
+  50%      { opacity: .95; transform: scale(1.15); }
+}
+
+/* 花瓣（香格里拉） */
+.p-petal {
+  width: 10px;
+  height: 10px;
+  background: radial-gradient(circle at 30% 30%, #fff0f6, #ffb6d5 60%, #ff8ec4);
+  border-radius: 50% 0 50% 0;
+  animation: petal-fall linear infinite;
+}
+@keyframes petal-fall {
+  0%   { transform: translate3d(0,-10vh,0) rotate(0deg); opacity: 0; }
+  10%  { opacity: 1; }
+  100% { transform: translate3d(10vw,110vh,0) rotate(540deg); opacity: 0; }
+}
+
+/* 爆发粒子（连点温度彩蛋） */
+.p-burst {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  animation: burst 1.1s var(--ease) forwards;
+}
+@keyframes burst {
+  0%   { transform: translate3d(0,0,0) scale(1); opacity: 1; }
+  100% { transform: translate3d(var(--bx), var(--by), 0) scale(.2); opacity: 0; }
+}
+
+
+/* ============================================================
+   4. 主布局
+   ============================================================ */
+.app {
+  position: relative;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: max(20px, env(safe-area-inset-top)) 20px 40px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* ---- 顶栏 ---- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.city-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  padding: 6px 10px 6px 4px;
+  border-radius: 10px;
+  transition: background .25s var(--ease);
+}
+.city-trigger:hover { background: rgba(255,255,255,.10); }
+.city-trigger .chev { opacity: .6; transition: transform .3s var(--ease); }
+.city-trigger[aria-expanded="true"] .chev { transform: rotate(180deg); }
+
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  transition: background .25s var(--ease), transform .2s var(--ease);
+}
+.icon-btn:hover  { background: var(--card-hover); }
+.icon-btn:active { transform: scale(.94); }
+.icon-btn.spin svg { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+
+/* ---- 当前天气 ---- */
+.current {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 0 4px;
+  animation: rise .7s var(--ease) both;
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.temp-wrap {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  line-height: .92;
+}
+
+.temp {
+  font-size: clamp(78px, 20vw, 132px);
+  font-weight: 200;
+  letter-spacing: -.04em;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  user-select: none;
+  transition: transform .18s var(--ease);
+}
+.temp:active { transform: scale(.97); }
+.unit {
+  font-size: clamp(28px, 7vw, 44px);
+  font-weight: 200;
+  margin-top: .35em;
+  opacity: .7;
+}
+
+.cond {
+  font-size: 17px;
+  color: var(--text-dim);
+  letter-spacing: .04em;
+  margin-top: 2px;
+}
+
+.meta {
+  display: flex;
+  gap: 26px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  font-size: 14px;
+}
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.meta-item span { color: var(--text-faint); font-size: 12px; letter-spacing: .06em; }
+.meta-item b    { font-weight: 500; font-variant-numeric: tabular-nums; }
+
+.sunline {
+  margin-top: 14px;
+  font-size: 12.5px;
+  color: var(--text-faint);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.sunline b { font-weight: 500; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.dot-sep { opacity: .4; }
+
+
+/* ---- 区块通用 ---- */
+.block { display: flex; flex-direction: column; gap: 12px; }
+
+.block-title {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: 0;
+  padding-left: 4px;
+}
+
+
+/* ---- 24 小时 ---- */
+.hourly {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 4px 12px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.hourly::-webkit-scrollbar { display: none; }
+
+.hour {
+  flex: 0 0 auto;
+  width: 62px;
+  padding: 14px 6px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  scroll-snap-align: start;
+  transition: background .25s var(--ease), transform .25s var(--ease);
+}
+.hour:hover { background: var(--card-hover); transform: translateY(-2px); }
+.hour .h-time  { font-size: 11.5px; color: var(--text-faint); letter-spacing: .04em; }
+.hour .h-icon  { font-size: 20px; line-height: 1; }
+.hour .h-temp  { font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+
+/* ---- 7 天 ---- */
+.daily { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+
+.day {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 12px;
+  border-radius: var(--radius-sm);
+  transition: background .25s var(--ease);
+}
+.day:hover { background: var(--card); }
+.day + .day { border-top: 1px solid rgba(255,255,255,.07); }
+
+.day .d-name { font-size: 14.5px; }
+.day .d-icon { font-size: 18px; opacity: .9; width: 24px; text-align: center; }
+.day .d-temp {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  gap: 10px;
+  min-width: 78px;
+  justify-content: flex-end;
+}
+.day .d-hi { font-weight: 500; }
+.day .d-lo { color: var(--text-faint); }
+
+
+/* ---- 页脚 & 隐藏入口 ---- */
+.footer {
+  margin-top: auto;
+  padding-top: 36px;
+  display: flex;
+  justify-content: center;
+}
+
+.hint-trigger {
+  font-size: 14px;
+  line-height: 1;
+  color: rgba(255,255,255,.10);
+  padding: 8px 14px;
+  border-radius: 8px;
+  transition: color .4s var(--ease), background .3s var(--ease);
+  user-select: none;
+}
+.hint-trigger:hover {
+  color: rgba(255,255,255,.55);
+  background: rgba(255,255,255,.06);
+}
+.hint-trigger.found {
+  color: rgba(255,215,120,.9);
+  animation: hint-pulse 2.4s ease-in-out infinite;
+}
+@keyframes hint-pulse {
+  0%, 100% { opacity: .5; }
+  50%      { opacity: 1; }
+}
+
+
+/* ============================================================
+   5. 城市选择面板
+   ============================================================ */
+.panel { position: fixed; inset: 0; z-index: 40; }
+
+.panel-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity .35s var(--ease);
+}
+.panel.open .panel-backdrop { opacity: 1; }
+
+.panel-sheet {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: min(720px, 100%);
+  max-height: 82vh;
+  transform: translate(-50%, 100%);
+  background: rgba(18,22,38,.86);
+  border: 1px solid rgba(255,255,255,.12);
+  border-bottom: none;
+  border-radius: 22px 22px 0 0;
+  backdrop-filter: blur(26px) saturate(150%);
+  -webkit-backdrop-filter: blur(26px) saturate(150%);
+  box-shadow: 0 -20px 60px rgba(0,0,0,.5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform .42s var(--ease);
+  text-shadow: none;
+}
+.panel.open .panel-sheet { transform: translate(-50%, 0); }
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  flex-shrink: 0;
+}
+
+.search-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.10);
+  transition: border-color .25s var(--ease), background .25s var(--ease);
+}
+.search-wrap:focus-within {
+  border-color: rgba(255,255,255,.32);
+  background: rgba(255,255,255,.12);
+}
+.search-icon { opacity: .5; flex-shrink: 0; }
+
+#citySearch {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 15px;
+  font-family: inherit;
+}
+#citySearch::placeholder { color: var(--text-faint); }
+
+.text-btn {
+  font-size: 14px;
+  color: var(--text-dim);
+  padding: 8px 12px;
+  border-radius: 9px;
+  transition: background .2s var(--ease), color .2s var(--ease);
+  flex-shrink: 0;
+}
+.text-btn:hover { background: rgba(255,255,255,.10); color: var(--text); }
+.text-btn.primary {
+  background: rgba(255,255,255,.92);
+  color: #10152a;
+  font-weight: 500;
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px;
+  text-shadow: none;
+}
+.text-btn.primary:hover { background: #fff; }
+
+.panel-body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 10px 28px;
+  overscroll-behavior: contain;
+}
+
+.province-title {
+  font-size: 11.5px;
+  letter-spacing: .1em;
+  color: var(--text-faint);
+  padding: 16px 12px 8px;
+  position: sticky;
+  top: 0;
+  background: linear-gradient(180deg, rgba(18,22,38,.96) 60%, rgba(18,22,38,0));
+  z-index: 1;
+}
+
+.city-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+  gap: 8px;
+  padding: 0 6px 4px;
+}
+
+.city-item {
+  padding: 11px 8px;
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--text-dim);
+  background: rgba(255,255,255,.05);
+  border: 1px solid transparent;
+  text-align: center;
+  transition: all .2s var(--ease);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.city-item:hover {
+  background: rgba(255,255,255,.13);
+  color: var(--text);
+  border-color: rgba(255,255,255,.16);
+}
+.city-item.active {
+  background: rgba(255,255,255,.92);
+  color: #10152a;
+  font-weight: 600;
+  text-shadow: none;
+}
+
+.empty-tip {
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 14px;
+  padding: 60px 20px;
+}
+
+
+/* ============================================================
+   6. 彩蛋提示弹窗
+   ============================================================ */
+.modal { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; }
+[hidden] { display: none !important; }
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  opacity: 0;
+  transition: opacity .3s var(--ease);
+}
+.modal.open .modal-backdrop { opacity: 1; }
+
+.modal-card {
+  position: relative;
+  width: min(440px, 100%);
+  max-height: 84vh;
+  overflow-y: auto;
+  padding: 26px 24px 22px;
+  border-radius: 20px;
+  background: rgba(20,24,42,.92);
+  border: 1px solid rgba(255,255,255,.14);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transform: scale(.94) translateY(10px);
+  transition: opacity .32s var(--ease), transform .32s var(--ease);
+  text-shadow: none;
+}
+.modal.open .modal-card { opacity: 1; transform: none; }
+
+.modal-title { font-size: 18px; font-weight: 600; margin: 0 0 6px; }
+.modal-sub   { font-size: 13.5px; color: var(--text-faint); margin: 0 0 20px; }
+
+.egg-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.egg-list li {
+  padding: 12px 12px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: background .2s var(--ease);
+}
+.egg-list li:hover { background: rgba(255,255,255,.07); }
+.egg-list b    { font-size: 13.5px; font-weight: 600; letter-spacing: .01em; }
+.egg-list span { font-size: 12.5px; color: var(--text-faint); }
+
+
+/* ============================================================
+   7. 月亮悄悄话 / Toast / 加载条
+   ============================================================ */
+.moon-whisper {
+  position: fixed;
+  left: 50%;
+  top: 26%;
+  transform: translate(-50%, -12px);
+  z-index: 30;
+  max-width: min(360px, 84vw);
+  padding: 14px 20px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+  color: rgba(255,255,255,.92);
+  background: rgba(26,32,58,.72);
+  border: 1px solid rgba(200,215,255,.22);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: 0 0 40px rgba(140,170,255,.20);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .8s var(--ease), transform .8s var(--ease);
+  text-shadow: none;
+}
+.moon-whisper.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 34px;
+  transform: translate(-50%, 12px);
+  z-index: 60;
+  padding: 11px 20px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  color: var(--text);
+  background: rgba(24,28,48,.88);
+  border: 1px solid rgba(255,255,255,.14);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s var(--ease), transform .3s var(--ease);
+  text-shadow: none;
+  max-width: 84vw;
+  text-align: center;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+.loading-bar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 2px;
+  width: 100%;
+  z-index: 70;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.85), transparent);
+  transform: translateX(-100%);
+  animation: loading 1.1s ease-in-out infinite;
+}
+@keyframes loading {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+
+/* ============================================================
+   8. 彩蛋模式（body 类）
+   ============================================================ */
+
+/* ---- 8.1 WASD：星空彩虹 ---- */
+body.egg-rainbow .bg-layer {
+  background: linear-gradient(135deg,
+    #1a0b2e 0%, #2b1055 22%, #7b2ff7 44%,
+    #f107a3 62%, #ff8a00 80%, #1a0b2e 100%) !important;
+  background-size: 300% 300% !important;
+  animation: rainbow-drift 18s ease infinite;
+}
+@keyframes rainbow-drift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+body.egg-rainbow .bg-glow {
+  background: radial-gradient(80% 60% at 50% 10%, rgba(255,255,255,.20), transparent 70%) !important;
+}
+body.egg-rainbow .hint-trigger { color: rgba(255,255,255,.35); }
+
+/* ---- 8.2 霍格沃茨：魔法夜幕 ---- */
+body.egg-magic .bg-layer {
+  background: linear-gradient(180deg, #0b0620 0%, #1a1040 42%, #2d1b5e 72%, #4a2a7a 100%) !important;
+}
+body.egg-magic .bg-glow {
+  background: radial-gradient(70% 50% at 50% 20%, rgba(180,140,255,.28), transparent 70%) !important;
+  animation: magic-pulse 5s ease-in-out infinite;
+}
+@keyframes magic-pulse {
+  0%, 100% { opacity: .7; }
+  50%      { opacity: 1; }
+}
+
+/* ---- 8.3 亚特兰蒂斯：水下 ---- */
+body.egg-underwater .bg-layer {
+  background: linear-gradient(180deg, #022c43 0%, #04546e 42%, #0a7d92 74%, #06a3b8 100%) !important;
+}
+body.egg-underwater .bg-glow {
+  background: radial-gradient(120% 80% at 50% -10%, rgba(180,255,255,.22), transparent 65%) !important;
+  animation: underwater-rays 9s ease-in-out infinite;
+}
+@keyframes underwater-rays {
+  0%, 100% { opacity: .65; transform: translateX(-3%); }
+  50%      { opacity: 1;   transform: translateX(3%); }
+}
+
+/* ---- 8.4 香格里拉：仙境 ---- */
+body.egg-fairy .bg-layer {
+  background: linear-gradient(180deg, #fbd3e9 0%, #f7c6d9 30%, #c9a7e8 60%, #8fb8e8 100%) !important;
+}
+body.egg-fairy { color: #2b1f3a; text-shadow: 0 1px 14px rgba(255,255,255,.5); }
+body.egg-fairy .bg-glow {
+  background: radial-gradient(90% 70% at 50% 0%, rgba(255,255,255,.45), transparent 70%) !important;
+}
+body.egg-fairy .hour,
+body.egg-fairy .icon-btn {
+  background: rgba(255,255,255,.42);
+  border-color: rgba(255,255,255,.6);
+}
+body.egg-fairy .meta-item span,
+body.egg-fairy .block-title,
+body.egg-fairy .sunline { color: rgba(43,31,58,.55); }
+body.egg-fairy .cond { color: rgba(43,31,58,.7); }
+
+/* ---- 8.5 北极：极光 ---- */
+body.egg-aurora .bg-layer {
+  background: linear-gradient(180deg, #020617 0%, #06182e 42%, #0a2440 100%) !important;
+}
+body.egg-aurora .bg-glow {
+  background:
+    radial-gradient(60% 40% at 30% 15%, rgba(90,255,180,.30), transparent 60%),
+    radial-gradient(55% 38% at 70% 22%, rgba(120,190,255,.28), transparent 62%),
+    radial-gradient(70% 45% at 50% 35%, rgba(190,120,255,.22), transparent 68%) !important;
+  animation: aurora 12s ease-in-out infinite alternate;
+}
+@keyframes aurora {
+  0%   { filter: hue-rotate(0deg)   brightness(1);   transform: translateX(-2%); }
+  50%  { filter: hue-rotate(35deg)  brightness(1.2); transform: translateX(2%); }
+  100% { filter: hue-rotate(-20deg) brightness(1);   transform: translateX(-1%); }
+}
+
+/* ---- 8.6 撒哈拉：沙漠热浪 ---- */
+body.egg-desert .bg-layer {
+  background: linear-gradient(180deg, #ffb347 0%, #f08b2e 38%, #d1631c 70%, #8b3a0a 100%) !important;
+}
+body.egg-desert .bg-glow {
+  background: radial-gradient(80% 60% at 50% 0%, rgba(255,240,180,.55), transparent 62%) !important;
+  animation: heatwave 4s ease-in-out infinite;
+}
+@keyframes heatwave {
+  0%, 100% { transform: scale(1); opacity: .85; }
+  50%      { transform: scale(1.06); opacity: 1; }
+}
+
+/* ---- 8.7 时间加速（长按背景） ---- */
+body.time-warp .bg-layer { transition: opacity .35s var(--ease); }
+body.time-warp .celestial::before { transition: all .35s var(--ease); }
+
+/* ---- 8.8 全局彩蛋氛围：星尘 ---- */
+body.egg-rainbow .p-star,
+body.egg-aurora  .p-star { animation-duration: 1.8s; }
+
+
+/* ============================================================
+   9. 响应式
+   ============================================================ */
+@media (max-width: 480px) {
+  .app { padding: 16px 16px 32px; gap: 22px; }
+  .city-trigger { font-size: 18px; }
+  .meta { gap: 20px; }
+  .hour { width: 58px; }
+  .day { padding: 12px 8px; gap: 10px; }
+  .panel-sheet { max-height: 88vh; border-radius: 20px 20px 0 0; }
+  .city-grid { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); }
+}
+
+@media (max-width: 360px) {
+  .temp { font-size: 76px; }
+  .meta { gap: 14px; font-size: 13px; }
+  .city-grid { grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); }
+}
+
+/* 桌面端稍微大气一点 */
+@media (min-width: 900px) {
+  .app { max-width: 760px; padding-top: 48px; }
+  .celestial { width: 150px; height: 150px; }
+}
+
+/* 横屏手机：压低当前天气高度 */
+@media (max-height: 520px) and (orientation: landscape) {
+  .temp { font-size: 64px; }
+  .celestial { top: 4%; }
+}
+
+/* 减少动态效果偏好 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .15s !important;
+  }
+}
