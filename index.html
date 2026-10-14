@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<meta name="description" content="极简天气 · 全国城市 · 随时间变化的天空">
+<title>天气</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-period="day" data-weather="clear">
+
+  <!-- ============ 背景层：双层交叉淡化 ============ -->
+  <div class="bg-stack" aria-hidden="true">
+    <div class="bg-layer" id="bgA"></div>
+    <div class="bg-layer" id="bgB"></div>
+    <div class="bg-glow" id="bgGlow"></div>
+  </div>
+
+  <!-- ============ 天体：太阳 / 月亮 ============ -->
+  <div class="celestial" id="celestial" aria-hidden="true"></div>
+
+  <!-- ============ 粒子层：雨 / 雪 / 星 / 花瓣 ============ -->
+  <div class="particles" id="particles" aria-hidden="true"></div>
+
+  <!-- ============ 主内容 ============ -->
+  <main class="app">
+
+    <header class="topbar">
+      <button class="city-trigger" id="cityTrigger" type="button">
+        <span id="cityLabel">北京</span>
+        <svg class="chev" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+          <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+
+      <button class="icon-btn" id="locateBtn" type="button"
+              aria-label="使用我的位置" title="定位">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor"
+                  stroke-width="2" opacity=".35"/>
+        </svg>
+      </button>
+    </header>
+
+    <section class="current" id="currentSection">
+      <div class="temp-wrap">
+        <!-- 温度：连点 7 次触发彩蛋 -->
+        <span class="temp" id="temp" role="button" tabindex="0"
+              aria-label="温度">--</span><span class="unit">°</span>
+      </div>
+
+      <div class="cond" id="cond">正在寻找天空…</div>
+
+      <div class="meta" id="meta">
+        <div class="meta-item"><span>体感</span><b id="feels">--°</b></div>
+        <div class="meta-item"><span>湿度</span><b id="humidity">--%</b></div>
+        <div class="meta-item"><span>风速</span><b id="wind">-- m/s</b></div>
+      </div>
+
+      <div class="sunline">
+        <span>日出 <b id="sunrise">--:--</b></span>
+        <span class="dot-sep">·</span>
+        <span>日落 <b id="sunset">--:--</b></span>
+        <span class="dot-sep">·</span>
+        <span>当地 <b id="localTime">--:--</b></span>
+      </div>
+    </section>
+
+    <section class="block">
+      <h2 class="block-title">未来 24 小时</h2>
+      <div class="hourly" id="hourly"></div>
+    </section>
+
+    <section class="block">
+      <h2 class="block-title">未来 7 天</h2>
+      <ul class="daily" id="daily"></ul>
+    </section>
+
+    <!-- 最底部：隐藏提示入口（一个几乎看不见的小点） -->
+    <footer class="footer">
+      <button class="hint-trigger" id="hintTrigger" type="button"
+              aria-label="隐藏入口" title="">·</button>
+    </footer>
+
+  </main>
+
+  <!-- ============ 城市选择面板 ============ -->
+  <div class="panel" id="cityPanel" hidden>
+    <div class="panel-backdrop" data-close-panel></div>
+    <div class="panel-sheet" role="dialog" aria-modal="true" aria-label="选择城市">
+      <div class="panel-head">
+        <div class="search-wrap">
+          <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/>
+            <path d="M16.5 16.5L21 21" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <input id="citySearch" type="text" placeholder="搜索城市…"
+                 autocomplete="off" spellcheck="false" />
+        </div>
+        <button class="text-btn" id="cityClose" type="button">关闭</button>
+      </div>
+      <div class="panel-body" id="cityBody"></div>
+    </div>
+  </div>
+
+  <!-- ============ 彩蛋提示弹窗 ============ -->
+  <div class="modal" id="hintModal" hidden>
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-label="隐藏彩蛋">
+      <h3 class="modal-title">你找到了隐藏入口</h3>
+      <p class="modal-sub">这里藏着一些小惊喜，慢慢试。</p>
+      <ul class="egg-list">
+        <li><b>W → A → S → D</b><span>依次敲下四个键</span></li>
+        <li><b>霍格沃茨 · 亚特兰蒂斯 · 香格里拉 · 北极 · 撒哈拉</b>
+            <span>在搜索框输入这些名字</span></li>
+        <li><b>连点温度 7 次</b><span>让天气动起来</span></li>
+        <li><b>午夜 0–4 点来访</b><span>月亮有话要说</span></li>
+        <li><b>长按背景 1.5 秒</b><span>预览一整天的天色</span></li>
+        <li><b>下雨 / 下雪</b><span>直接搜索这两个词</span></li>
+      </ul>
+      <button class="text-btn primary" id="hintClose" type="button">知道了</button>
+    </div>
+  </div>
+
+  <!-- ============ 月亮悄悄话气泡 ============ -->
+  <div class="moon-whisper" id="moonWhisper" hidden></div>
+
+  <!-- ============ 轻提示 ============ -->
+  <div class="toast" id="toast" hidden></div>
+
+  <!-- ============ 顶部加载进度条 ============ -->
+  <div class="loading-bar" id="loadingBar" hidden></div>
+
+  <script src="cities.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
